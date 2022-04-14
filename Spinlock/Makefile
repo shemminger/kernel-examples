@@ -1,4 +1,4 @@
-obj-m += driver.o
+obj-m += spindemo.o
 
 KDIR = /lib/modules/$(shell uname -r)/build
 

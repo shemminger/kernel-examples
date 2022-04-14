@@ -24,8 +24,8 @@ static dev_t dev;
 static struct class *dev_class;
 static struct cdev demo_cdev;
 
-static int __init demo_driver_init(void);
-static void __exit demo_driver_exit(void);
+static int __init demo_spin_init(void);
+static void __exit demo_spin_exit(void);
 
 static struct task_struct *demo_thread1;
 static struct task_struct *demo_thread2;
@@ -91,9 +91,9 @@ static const struct file_operations fops = {
 	.release = demo_release,
 };
 
-static int __init demo_driver_init(void)
+static int __init demo_spin_init(void)
 {
-	if (alloc_chrdev_region(&dev, 0, 1, "demo_dev") < 0) {
+	if (alloc_chrdev_region(&dev, 0, 1, "spin_demo") < 0) {
 		pr_err("Cannot allocate major number\n");
 		return -1;
 	}
@@ -106,13 +106,13 @@ static int __init demo_driver_init(void)
 		goto r_class;
 	}
 
-	dev_class = class_create(THIS_MODULE, "demo_class");
+	dev_class = class_create(THIS_MODULE, "spin_demo");
 	if (dev_class == NULL) {
 		pr_err("Cannot create the struct class\n");
 		goto r_class;
 	}
 
-	if (!device_create(dev_class, NULL, dev, NULL, "demo_device")) {
+	if (!device_create(dev_class, NULL, dev, NULL, "spin_demo")) {
 		pr_info("Cannot create the Device\n");
 		goto r_device;
 	}
@@ -144,7 +144,7 @@ r_class:
 	return -1;
 }
 
-static void __exit demo_driver_exit(void)
+static void __exit demo_spin_exit(void)
 {
 	kthread_stop(demo_thread1);
 	kthread_stop(demo_thread2);
@@ -155,7 +155,7 @@ static void __exit demo_driver_exit(void)
 	pr_info("Device Driver Remove...Done!!\n");
 }
 
-module_init(demo_driver_init);
-module_exit(demo_driver_exit);
+module_init(demo_spin_init);
+module_exit(demo_spin_exit);
 
 MODULE_LICENSE("GPL");
