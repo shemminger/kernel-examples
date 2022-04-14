@@ -1,0 +1,150 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Demo of bad usage of spinlock
+ */
+
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/kdev_t.h>
+#include <linux/fs.h>
+#include <linux/cdev.h>
+#include <linux/device.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/rcupdate.h>
+
+static struct class *demo_rcu_class;
+static int demo_rcu_major;
+
+struct counter {
+	unsigned long value;
+	struct rcu_head rcu;
+};
+
+static struct global_data {
+	struct cdev cdev;
+	struct counter __rcu *cur_counter;
+} global;
+
+static ssize_t
+demo_rcu_read(struct file *filp, char __user *buf, size_t count, loff_t *off)
+{
+	struct counter *counter;
+	char tmp[64];
+	loff_t pos;
+	ssize_t ret;
+	int len;
+
+	rcu_read_lock();
+	counter = rcu_dereference(global.cur_counter);
+	len = snprintf(tmp, sizeof(tmp), "%lu\n", counter->value);
+	rcu_read_unlock();
+
+	pos = *off;
+	if (pos >= len)
+		return 0; /* read past eof */
+
+	ret = min_t(ssize_t, count, len - pos);
+	if (copy_to_user(buf, tmp + pos, ret))
+		return -EFAULT;
+
+	*off += ret;
+	return ret;
+}
+
+static ssize_t
+demo_rcu_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
+{
+	struct counter *counter;
+	int ret;
+
+	counter = kmalloc(sizeof(*counter), GFP_USER);
+	if (counter == NULL)
+		return -ENOMEM;
+	
+	ret = kstrtoul_from_user(buf, len, 10, &counter->value);
+	if (ret < 0)
+		return ret;
+
+	/* replace original pointer with new value */
+	counter = xchg(&global.cur_counter, counter);
+
+	/* Free old one after grace period */
+	if (counter != NULL)
+		kfree_rcu(counter, rcu);
+
+	return len;
+}
+
+static const struct file_operations fops = {
+	.owner  = THIS_MODULE,
+	.read   = demo_rcu_read,
+	.write  = demo_rcu_write,
+};
+
+static int __init demo_rcu_init(void)
+{
+	struct device *cdev;
+	int retval;
+	dev_t dev;
+	
+	retval = alloc_chrdev_region(&dev, 0, 1, "demo_rcu");
+	if (retval < 0) {
+		pr_err("Cannot allocate major number\n");
+		goto err_region;
+	}
+	demo_rcu_major = MAJOR(dev);
+
+	RCU_INIT_POINTER(global.cur_counter, NULL);
+
+	cdev_init(&global.cdev, &fops);
+
+	retval = cdev_add(&global.cdev, dev, 1);
+	if (retval < 0) {
+		pr_err("Cannot add the device to the system\n");
+		goto err_add;
+	}
+
+	demo_rcu_class = class_create(THIS_MODULE, "demo_rcu");
+	if (IS_ERR(demo_rcu_class)) {
+		retval = PTR_ERR(demo_rcu_class);
+		pr_err("cannot create the struct class\n");
+		goto err_class;
+	}
+
+	cdev = device_create(demo_rcu_class, NULL, dev, NULL, "demo_rcu");
+	if (IS_ERR(cdev)) {
+		retval = PTR_ERR(cdev);
+		pr_err("cannot create the Device\n");
+		goto err_device;
+	}
+
+	pr_info("Created demo device %d\n", demo_rcu_major);
+	return 0;
+
+err_device:
+	class_destroy(demo_rcu_class);
+err_class:
+	cdev_del(&global.cdev);
+err_add:
+	unregister_chrdev_region(dev, 1);
+err_region:
+	return retval;
+}
+
+static void __exit demo_rcu_exit(void)
+{
+	kfree(global.cur_counter);	/* why is this safe? */
+	
+	device_destroy(demo_rcu_class, MKDEV(demo_rcu_major, 0));
+	cdev_del(&global.cdev);
+
+	unregister_chrdev_region(MKDEV(demo_rcu_major, 0), 1);
+	class_destroy(demo_rcu_class);
+}
+
+module_init(demo_rcu_init);
+module_exit(demo_rcu_exit);
+
+MODULE_LICENSE("GPL");
