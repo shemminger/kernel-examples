@@ -23,10 +23,6 @@ static unsigned long demo_global_variable = 0;
 static dev_t dev;
 static struct class *dev_class;
 static struct cdev demo_cdev;
-
-static int __init demo_spin_init(void);
-static void __exit demo_spin_exit(void);
-
 static struct task_struct *demo_thread1;
 static struct task_struct *demo_thread2;
 
@@ -57,38 +53,9 @@ static int thread_function2(void *pv)
 	return 0;
 }
 
-static int demo_open(struct inode *inode, struct file *file)
-{
-	pr_info("Device File Opened...!!!\n");
-	return 0;
-}
-
-static int demo_release(struct inode *inode, struct file *file)
-{
-	pr_info("Device File Closed...!!!\n");
-	return 0;
-}
-
-static ssize_t demo_read(struct file *filp, char __user *buf, size_t len,
-			 loff_t *off)
-{
-	pr_info("Read function\n");
-	return 0;
-}
-
-static ssize_t demo_write(struct file *filp, const char __user *buf, size_t len,
-			  loff_t *off)
-{
-	pr_info("Write Function\n");
-	return len;
-}
-
+/* this device does nothing */
 static const struct file_operations fops = {
 	.owner  = THIS_MODULE,
-	.read   = demo_read,
-	.write  = demo_write,
-	.open   = demo_open,
-	.release = demo_release,
 };
 
 static int __init demo_spin_init(void)
@@ -133,7 +100,7 @@ static int __init demo_spin_init(void)
 		goto r_device;
 	}
 
-	pr_info("Device Driver Insert...Done!!!\n");
+	pr_info("Inserted spin_demo\n");
 	return 0;
 
 r_device:
@@ -152,7 +119,7 @@ static void __exit demo_spin_exit(void)
 	class_destroy(dev_class);
 	cdev_del(&demo_cdev);
 	unregister_chrdev_region(dev, 1);
-	pr_info("Device Driver Remove...Done!!\n");
+	pr_info("Remove spin_demo\n");
 }
 
 module_init(demo_spin_init);
