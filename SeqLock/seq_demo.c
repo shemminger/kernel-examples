@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Demo of bad usage of spinlock
+ * Demo using seqlock to read a value
  */
 
 #include <linux/kernel.h>

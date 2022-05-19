@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Demo of bad usage of spinlock
+ * Demo usage of reader/writer lock
  */
 
 #include <linux/kernel.h>
@@ -29,8 +29,6 @@ static struct global_data {
 /* Called from delayed work every second to increment counter. */
 static void counter_tick(struct work_struct *work)
 {
-	pr_info("delayed work called\n");
-	
 	write_lock(&global.lock);
 	++global.counter;
 	write_unlock(&global.lock);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Demo of bad usage of spinlock
+ * Demo usage of atomic for a counter
  */
 
 #include <linux/kernel.h>
