@@ -140,7 +140,7 @@ static int __init demo_init(void)
 		goto err_class;
 	}
 
-	cdev = device_create(demo_class, NULL, dev, NULL, "demo_seqlock");
+	cdev = device_create(demo_class, NULL, dev, NULL, "demo_wait");
 	if (IS_ERR(cdev)) {
 		retval = PTR_ERR(cdev);
 		pr_err("cannot create the Device\n");
