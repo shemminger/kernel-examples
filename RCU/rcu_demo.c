@@ -17,62 +17,60 @@
 static struct class *demo_rcu_class;
 static int demo_rcu_major;
 
-struct counter {
-	unsigned long value;
+struct save_value {
 	struct rcu_head rcu;
+	char str[];
 };
 
 static struct global_data {
 	struct cdev cdev;
-	struct counter __rcu *cur_counter;
+	struct save_value __rcu *cur_data;
 } global;
 
 static ssize_t
 demo_rcu_read(struct file *filp, char __user *buf, size_t count, loff_t *off)
 {
-	struct counter *counter;
-	char tmp[64];
+	struct save_value *data;
 	loff_t pos;
 	ssize_t ret;
-	int len;
+	size_t len;
 
 	rcu_read_lock();
-	counter = rcu_dereference(global.cur_counter);
-	len = snprintf(tmp, sizeof(tmp), "%lu\n", counter->value);
+	data = rcu_dereference(global.cur_data);
+	if (data == NULL) {
+		ret = -EINVAL;	/* no value has been set */
+	} else {
+		len = strlen(data->str);
+		ret = min_t(ssize_t, count, len - pos);
+		if (copy_to_user(buf, data->str + pos, ret))
+			ret = -EFAULT;
+		else
+			*off += ret;
+	}
 	rcu_read_unlock();
-
-	pos = *off;
-	if (pos >= len)
-		return 0; /* read past eof */
-
-	ret = min_t(ssize_t, count, len - pos);
-	if (copy_to_user(buf, tmp + pos, ret))
-		return -EFAULT;
-
-	*off += ret;
 	return ret;
 }
 
 static ssize_t
 demo_rcu_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
 {
-	struct counter *counter;
+	struct save_value *data;
 	int ret;
 
-	counter = kmalloc(sizeof(*counter), GFP_USER);
-	if (counter == NULL)
+	data = kmalloc(sizeof(*data) + len, GFP_USER);
+	if (data == NULL)
 		return -ENOMEM;
-	
-	ret = kstrtoul_from_user(buf, len, 10, &counter->value);
+
+	ret = strncpy_from_user(data->str, buf, len);
 	if (ret < 0)
 		return ret;
 
 	/* replace original pointer with new value */
-	counter = xchg(&global.cur_counter, counter);
+	data = xchg(&global.cur_data, data);
 
 	/* Free old one after grace period */
-	if (counter != NULL)
-		kfree_rcu(counter, rcu);
+	if (data != NULL)
+		kfree_rcu(data, rcu);
 
 	return len;
 }
@@ -88,7 +86,7 @@ static int __init demo_rcu_init(void)
 	struct device *cdev;
 	int retval;
 	dev_t dev;
-	
+
 	retval = alloc_chrdev_region(&dev, 0, 1, "demo_rcu");
 	if (retval < 0) {
 		pr_err("Cannot allocate major number\n");
@@ -96,7 +94,7 @@ static int __init demo_rcu_init(void)
 	}
 	demo_rcu_major = MAJOR(dev);
 
-	RCU_INIT_POINTER(global.cur_counter, NULL);
+	RCU_INIT_POINTER(global.cur_data, NULL);
 
 	cdev_init(&global.cdev, &fops);
 
@@ -135,8 +133,8 @@ err_region:
 
 static void __exit demo_rcu_exit(void)
 {
-	kfree(global.cur_counter);	/* why is this safe? */
-	
+	kfree(global.cur_data);	/* why is this safe? */
+
 	device_destroy(demo_rcu_class, MKDEV(demo_rcu_major, 0));
 	cdev_del(&global.cdev);
 
