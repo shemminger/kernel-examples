@@ -11,7 +11,7 @@ packages to build a kernel module and headers for your distribution.
 # Building module
 Each subdirectory contains a different small example.
 
-- [Spin locks](Spinlocks/README.md)
+- [Spin locks](Spinlock/README.md)
 - [Reader Writer locks](RwLock/README.md)
 - [Sequence locks](SeqLock/README.md)
 - [Wait Event](WaitEvent/README.md)

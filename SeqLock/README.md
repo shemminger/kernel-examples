@@ -1,4 +1,4 @@
-# Reader Writer Lock
+# Sequence Lock
 This module creates a character device /dev/demo_seqlock.
 The device implements a 128 bit counter that can be read and written.
 
