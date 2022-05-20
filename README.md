@@ -11,6 +11,11 @@ packages to build a kernel module and headers for your distribution.
 # Building module
 Each subdirectory contains a different small example.
 
-- [Spin locks][Spinlocks/README.md]
-- [Reader Writer locks][RwLock/README.md]
+- [Spin locks](Spinlocks/README.md)
+- [Reader Writer locks](RwLock/README.md)
+- [Sequence locks](SeqLock/README.md)
+- [Wait Event](WaitEvent/README.md)
+- [Atomic](Atomic/README.md)
+- [Per CPU Counter](PerCpuCounter/README.md)
+- [Read Copy Update](RCU/README.md)
 
