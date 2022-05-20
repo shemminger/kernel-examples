@@ -26,28 +26,16 @@ static struct cdev demo_cdev;
 static struct task_struct *demo_thread1;
 static struct task_struct *demo_thread2;
 
-static int thread_function1(void *pv)
+static int thread_function(void *arg)
 {
+	const char *my_name = arg;
+
 	while (!kthread_should_stop()) {
 		spin_lock(&demo_spinlock);
 		demo_global_variable++;
-		pr_info("In %s %lu\n", __func__, demo_global_variable);
+		pr_info("spin_demo %s %lu\n", my_name, demo_global_variable);
 		spin_unlock(&demo_spinlock);
 
-		msleep(1000);
-	}
-	return 0;
-}
-
-static int thread_function2(void *pv)
-{
-	while (!kthread_should_stop()) {
-		spin_lock(&demo_spinlock);
-		demo_global_variable++;
-
-		pr_info("In %s Function2 %lu\n", __func__,
-			demo_global_variable);
-		spin_unlock(&demo_spinlock);
 		msleep(1000);
 	}
 	return 0;
@@ -84,7 +72,7 @@ static int __init demo_spin_init(void)
 		goto r_device;
 	}
 
-	demo_thread1 = kthread_run(thread_function1, NULL, "demo thread1");
+	demo_thread1 = kthread_run(thread_function, "thread1", "spin_demo1");
 	if (demo_thread1) {
 		pr_info("Kthread1 Created Successfully...\n");
 	} else {
@@ -92,7 +80,7 @@ static int __init demo_spin_init(void)
 		goto r_device;
 	}
 
-	demo_thread2 = kthread_run(thread_function2, NULL, "demo thread2");
+	demo_thread2 = kthread_run(thread_function2, "thread2", "spin_demo2");
 	if (demo_thread2) {
 		pr_info("Kthread2 Created Successfully...\n");
 	} else {
