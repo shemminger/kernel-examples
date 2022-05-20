@@ -107,7 +107,7 @@ static int __init demo_rwlock_init(void)
 		goto err_add;
 	}
 
-	demo_class = class_create(THIS_MODULE, "demo_rwlock")
+	demo_class = class_create(THIS_MODULE, "demo_rwlock");
 	if (IS_ERR(demo_class)) {
 		retval = PTR_ERR(demo_class);
 		pr_err("Cannot create the struct class\n");
