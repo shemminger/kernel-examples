@@ -80,7 +80,7 @@ static int __init demo_spin_init(void)
 		goto r_device;
 	}
 
-	demo_thread2 = kthread_run(thread_function2, "thread2", "spin_demo2");
+	demo_thread2 = kthread_run(thread_function, "thread2", "spin_demo2");
 	if (demo_thread2) {
 		pr_info("Kthread2 Created Successfully...\n");
 	} else {
