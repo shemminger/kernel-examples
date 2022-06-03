@@ -138,6 +138,8 @@ err_region:
 
 static void __exit demo_rwlock_exit(void)
 {
+	cancel_delayed_work_sync(&global.dwork);
+	
 	device_destroy(demo_class, MKDEV(demo_major, 0));
 	cdev_del(&global.cdev);
 

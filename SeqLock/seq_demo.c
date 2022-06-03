@@ -36,6 +36,7 @@ demo_seqlock_read(struct file *filp, char __user *buf, size_t count, loff_t *off
 		seq = read_seqbegin(&global.lock);
 		len = snprintf(tmp, sizeof(tmp),
 			       "%llu\n", global.counter);
+		pr_info("%s(): seq=%u len=%d\n", __func__, seq, len);
 	} while (read_seqretry(&global.lock, seq));
 
 	pos = *off;
@@ -56,10 +57,14 @@ demo_seqlock_write(struct file *filp, const char __user *buf, size_t len, loff_t
 	unsigned long long val;
 	int ret;
 
+	pr_info("Called %s len=%zu\n", __func__, len);
 	ret = kstrtoull_from_user(buf, len, 10, &val);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_err("kstrtoull ret %d\n", ret);
 		return ret;
+	}
 	
+	pr_info("seqlock write value=%llu\n", val);
 	write_seqlock(&global.lock);
 	global.counter = val;
 	write_sequnlock(&global.lock);
