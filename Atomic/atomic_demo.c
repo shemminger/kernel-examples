@@ -65,7 +65,7 @@ demo_atomic_write(struct file *filp, const char __user *buf, size_t len, loff_t 
 	ret = kstrtol_from_user(buf, len, 10, &val);
 	if (ret < 0)
 		return ret;
-	
+
 	atomic_long_set(&global.counter, val);
 
 	return len;
@@ -105,7 +105,7 @@ static int __init demo_atomic_init(void)
 	struct device *cdev;
 	int retval;
 	dev_t dev;
-	
+
 	retval = alloc_chrdev_region(&dev, 0, 1, "demo_atomic");
 	if (retval < 0) {
 		pr_err("Cannot allocate major number\n");
@@ -154,6 +154,8 @@ err_region:
 
 static void __exit demo_atomic_exit(void)
 {
+	cancel_delayed_work_sync(&global.dwork);
+
 	device_destroy(demo_atomic_class, MKDEV(demo_atomic_major, 0));
 	cdev_del(&global.cdev);
 
