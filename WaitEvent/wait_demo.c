@@ -3,22 +3,20 @@
  * Demo using wait queue
  */
 
+/* include module name in all messages */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kdev_t.h>
 #include <linux/fs.h>
-#include <linux/cdev.h>
-#include <linux/device.h>
+#include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 
-static struct class *demo_class;
-static int demo_major;
-
 static struct global_data {
-	struct cdev cdev;
 	struct wait_queue_head wq;
 	atomic_long_t counter;
 } global;
@@ -101,7 +99,7 @@ static int demo_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static const struct file_operations fops = {
+static const struct file_operations demo_fops = {
 	.owner  = THIS_MODULE,
 	.read   = demo_read,
 	.write  = demo_write,
@@ -109,63 +107,30 @@ static const struct file_operations fops = {
 	.release = demo_release,
 };
 
+static struct miscdevice demo_miscdev = {
+	.name = "demo_wait",
+	.minor = MISC_DYNAMIC_MINOR,
+	.fops = &demo_fops,
+};
+
 static int __init demo_init(void)
 {
-	struct device *cdev;
-	int retval;
-	dev_t dev;
-
-	retval = alloc_chrdev_region(&dev, 0, 1, "demo_wait");
-	if (retval < 0) {
-		pr_err("Cannot allocate major number\n");
-		goto err_region;
-	}
-	demo_major = MAJOR(dev);
 
 	atomic_long_set(&global.counter, 0);
 	init_waitqueue_head(&global.wq);
 
-	cdev_init(&global.cdev, &fops);
-
-	retval = cdev_add(&global.cdev, dev, 1);
-	if (retval < 0) {
-		pr_err("Cannot add the device to the system\n");
-		goto err_add;
+	if (misc_register(&demo_miscdev) != 0) {
+		pr_err("Cannot initialize misc dev\n");
+		return -1;
 	}
 
-	demo_class = class_create(THIS_MODULE, "demo_wait");
-	if (IS_ERR(demo_class)) {
-		retval = PTR_ERR(demo_class);
-		pr_err("cannot create the struct class\n");
-		goto err_class;
-	}
-
-	cdev = device_create(demo_class, NULL, dev, NULL, "demo_wait");
-	if (IS_ERR(cdev)) {
-		retval = PTR_ERR(cdev);
-		pr_err("cannot create the Device\n");
-		goto err_device;
-	}
-
+	pr_info("node %d:%d\n", MISC_MAJOR, demo_miscdev.minor);
 	return 0;
-
-err_device:
-	class_destroy(demo_class);
-err_class:
-	cdev_del(&global.cdev);
-err_add:
-	unregister_chrdev_region(dev, 1);
-err_region:
-	return retval;
 }
 
 static void __exit demo_exit(void)
 {
-	device_destroy(demo_class, MKDEV(demo_major, 0));
-	cdev_del(&global.cdev);
-
-	unregister_chrdev_region(MKDEV(demo_major, 0), 1);
-	class_destroy(demo_class);
+	misc_deregister(&demo_miscdev);
 }
 
 module_init(demo_init);
